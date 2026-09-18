@@ -1,4 +1,4 @@
-name: CICD
+name: CI
 
 on:
   push:
@@ -39,8 +39,6 @@ jobs:
       - name: Pylint (production source)
         run: python -m pylint --disable=R,C --fail-under=7.0 src/ pages/ tests/
 
-
-
   # ── 2. Test ───────────────────────────────────────────────────────────────
   test:
     name: Test (pytest)
@@ -66,8 +64,6 @@ jobs:
       - name: Run pytest
         run: |
           python -m pytest tests/ -v
-
-
 
   # ── 3. Build & Push (CD) ────────────────────────────────────────────────────
   build-and-push:
