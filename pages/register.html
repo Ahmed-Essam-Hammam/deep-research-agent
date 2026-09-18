@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Create account — Deep Research</title>
+<link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">Deep Research</span></div>
+    <div class="topbar-right">
+      <span class="status-dot" id="statusDot" title="API reachability"></span>
+      <button class="linklike" id="apiSettingsBtn" type="button">API settings</button>
+    </div>
+  </header>
+
+  <div class="api-settings-panel" id="apiSettingsPanel" hidden>
+    <div class="field" style="margin-bottom:0;">
+      <label for="baseUrlInput">API base URL</label>
+      <input id="baseUrlInput" type="text" spellcheck="false" />
+    </div>
+  </div>
+
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1>Create your account</h1>
+      <p class="auth-sub">Takes a few seconds — you'll sign in right after.</p>
+
+      <div id="authBanner"></div>
+
+      <form id="registerForm">
+        <div class="field">
+          <label for="registerUsername">Username</label>
+          <input id="registerUsername" type="text" placeholder="e.g. alice" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="registerPassword">Password</label>
+          <input id="registerPassword" type="password" placeholder="••••••••" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label for="registerPasswordConfirm">Confirm password</label>
+          <input id="registerPasswordConfirm" type="password" placeholder="••••••••" autocomplete="new-password" />
+        </div>
+        <button class="btn btn-primary btn-block" id="registerSubmitBtn" type="submit">Create account</button>
+      </form>
+
+      <p class="auth-switch">Already have an account? <a href="login.html">Sign in</a></p>
+    </div>
+  </div>
+
+<script src="shared.js"></script>
+<script>
+  redirectIfAuthed();
+  initTopbar();
+
+  $("registerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    banner("authBanner", null);
+    const u = $("registerUsername").value.trim();
+    const p = $("registerPassword").value;
+    const c = $("registerPasswordConfirm").value;
+    if (!u || !p) return banner("authBanner", "Choose a username and password.", "error");
+    if (p !== c) return banner("authBanner", "Passwords don't match.", "error");
+
+    const btn = $("registerSubmitBtn");
+    btn.disabled = true;
+    try {
+      await apiRequest("POST", "/auth/register", { body: { username: u, password: p } });
+      window.location.href = "login.html?registered=1&username=" + encodeURIComponent(u);
+    } catch (err) {
+      banner("authBanner", err.message, "error");
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Deep Research</title>
+<link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+  <div class="boot-wrap">
+    <p class="boot-msg">Loading…</p>
+  </div>
+
+<script src="shared.js"></script>
+<script>
+  // This page never renders anything of its own - it just decides which
+  // real page you land on. A signed-out visitor never sees the app shell,
+  // even for a moment.
+  const session = getSession();
+  window.location.replace(session.token && session.username ? "app.html" : "login.html");
+</script>
+</body>
+</html>

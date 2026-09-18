@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign in — Deep Research</title>
+<link rel="stylesheet" href="shared.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">Deep Research</span></div>
+    <div class="topbar-right">
+      <span class="status-dot" id="statusDot" title="API reachability"></span>
+      <button class="linklike" id="apiSettingsBtn" type="button">API settings</button>
+    </div>
+  </header>
+
+  <div class="api-settings-panel" id="apiSettingsPanel" hidden>
+    <div class="field" style="margin-bottom:0;">
+      <label for="baseUrlInput">API base URL</label>
+      <input id="baseUrlInput" type="text" spellcheck="false" />
+    </div>
+  </div>
+
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1>Deep Research</h1>
+      <p class="auth-sub">Sign in to pick up your conversations.</p>
+
+      <div id="authBanner"></div>
+
+      <form id="signinForm">
+        <div class="field">
+          <label for="signinUsername">Username</label>
+          <input id="signinUsername" type="text" placeholder="e.g. alice" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="signinPassword">Password</label>
+          <input id="signinPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <button class="btn btn-primary btn-block" id="signinSubmitBtn" type="submit">Sign in</button>
+      </form>
+
+      <p class="auth-switch">No account? <a href="register.html">Create one</a></p>
+      <p class="auth-switch">Forgot your password? <a href="reset-password.html">Reset it</a></p>
+    </div>
+  </div>
+
+<script src="shared.js"></script>
+<script>
+  redirectIfAuthed();
+  initTopbar();
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("expired")) {
+    banner("authBanner", "Your session expired — sign in again.", "error");
+  } else if (params.get("registered")) {
+    banner("authBanner", "Account created — sign in to continue.", "success");
+  }
+  const prefillUser = params.get("username");
+  if (prefillUser) $("signinUsername").value = prefillUser;
+
+  $("signinForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    banner("authBanner", null);
+    const u = $("signinUsername").value.trim();
+    const p = $("signinPassword").value;
+    if (!u || !p) return banner("authBanner", "Enter your username and password.", "error");
+
+    const btn = $("signinSubmitBtn");
+    btn.disabled = true;
+    try {
+      const data = await apiRequest("POST", "/auth/token", { body: { username: u, password: p }, form: true });
+      setSession(data.access_token, u);
+      window.location.href = "app.html";
+    } catch (err) {
+      banner("authBanner", err.message, "error");
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
