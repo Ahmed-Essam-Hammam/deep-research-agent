@@ -133,7 +133,6 @@ docker compose down            # stop everything
 docker compose down -v         # stop and wipe the Postgres volume
 ```
 
-> ⚠️ **Note:** `init_db()` (run on every app startup, see `main.py`'s lifespan) currently does `drop_all` followed by `create_all` — every restart wipes and recreates all tables. This is convenient for iterating on the schema during development but means **no data currently persists across restarts**. Switch to driving the schema through Alembic migrations instead (see below) before relying on this for anything you want to keep.
 
 ## Quickstart — local Python
 
