@@ -1,0 +1,72 @@
+# Helm is a powerful tool designed to manage Kubernetes applications.
+# Often referred to as the package manager for Kubernetes, Helm simplifies the process of defining, installing, and upgrading even the most complex Kubernetes applications.
+
+# This is a Helm chart configuration option that overrides the full names Helm generates for Kubernetes resources.
+# When you install a Helm chart, Helm generates resource names based on the chart name, release name, and sometimes other naming rules.
+# Without fullnameOverride, Helm might generate resource names such as: monitoring-kube-prometheus-stack-grafana
+# with fullnameOverride: kps, You might get names such as: kps-grafana
+
+fullnameOverride: kps
+
+grafana:
+  # A sidecar is an additional container that runs alongside the main application container in the same Pod.
+  sidecar:
+    dashboards:
+      searchNamespace: ALL # load dashboards from ConfigMaps in any namespace
+
+prometheus:
+  prometheusSpec:
+    # This tells Prometheus to retain collected metrics for 7 days.
+    # Prometheus stores metrics on disk. Keeping metrics forever would continuously increase storage consumption.
+    # Note that retention can also be constrained by a configured storage-size limit, if one is set.
+    retention: 7d
+
+    # A ServiceMonitor is a Kubernetes custom resource provided by the Prometheus Operator.
+    # It tells Prometheus:
+    # - Which Kubernetes Services to monitor.
+    # - Which port to scrape.
+    # - Which metrics endpoint to request.
+    # - How frequently to collect metrics.
+    serviceMonitorSelectorNilUsesHelmValues: false # scrape ServiceMonitors from every namespace
+
+    # These specify the minimum resources Kubernetes should reserve for the Prometheus container when scheduling it.
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi # default StorageClass (gp3)
+
+# Alertmanager is a component that works alongside Prometheus to handle alerts.
+# For example : If CPU usage exceeds 90% for 5 minutes → Trigger an alert.
+# Alertmanager receives alerts from Prometheus and handles:
+# - Routing: Decides where alerts should go.
+# - Grouping: Combines related alerts into one notification.
+# - Deduplication: Prevents repeated notifications for the same alert.
+# - Silencing: Temporarily suppresses specific alerts.
+# - Inhibition: Suppresses less important alerts when a related critical alert is firing.
+# It can send notifications through integrations such as:
+# - Email.
+# - Slack.
+# - Microsoft Teams (through supported integrations or webhooks).
+# - PagerDuty.
+# - Webhooks.
+alertmanager:
+  enabled: false # no notification receiver configured; enable when you want alerts sent somewhere
+
+# These settings are part of the kube-prometheus-stack Helm values. They control whether Prometheus monitors certain Kubernetes control-plane components.
+# In your case, all four are disabled because you're using Amazon EKS, where AWS manages most of the Kubernetes control plane for you.
+# # EKS runs these control-plane parts for you and does not expose them to Prometheus.
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeProxy:
+  enabled: false

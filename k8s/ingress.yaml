@@ -1,0 +1,54 @@
+apiVersion: eks.amazonaws.com/v1
+kind: IngressClassParams
+metadata:
+  name: alb
+spec:
+  scheme: internet-facing
+  # HTTPS: after creating an ACM certificate in this region, uncomment (and see the Ingress below):
+  # certificateARNs: ["arn:aws:acm:REGION:ACCOUNT_ID:certificate/CERT_ID"]
+---
+
+
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: alb
+spec:
+  controller: eks.amazonaws.com/alb
+  parameters:
+    apiGroup: eks.amazonaws.com
+    kind: IngressClassParams
+    name: alb
+---
+
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: deep-research-agent
+  namespace: deep-research
+  annotations:
+  # The ALB periodically sends HTTP requests to this endpoint to check whether your application is healthy.
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health/ready
+    # 300 s idle timeout: the API streams long-running research responses.
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300
+    # Sticky sessions: research tasks live in each pod's memory.
+    # The ALB sends a cookie to the client.
+    # Subsequent requests carrying that cookie are routed to the same target (Pod 1).
+    # The cookie's configured duration is 3600 seconds
+    alb.ingress.kubernetes.io/target-group-attributes: stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=3600
+    # HTTPS: uncomment these two lines (needs certificateARNs above).
+    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    # alb.ingress.kubernetes.io/ssl-redirect: "443"
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /api # only /api is exposed and /api/[anything else] because of the prefix added below (not /metrics or /docs)
+            pathType: Prefix
+            backend:
+              service:
+                name: deep-research-agent
+                port:
+                  name: http

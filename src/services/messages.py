@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from uuid import UUID
 from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func
 
 from src.config.settings import Settings, get_settings
 from src.dependencies.database import async_session
@@ -66,6 +67,7 @@ async def persist_message(
             is_success=is_success,
             status_code=status_code,
             input_query_embeddings=embedding, 
+            ts_vector=func.to_tsvector("english", prompt),
         )
 
         async with async_session() as session:

@@ -12,11 +12,15 @@ database_url = settings.postgres_url
 
 engine = create_async_engine(database_url, echo=True)
 
+# Arbitrary constant used as a Postgres advisory-lock key so that replicas
+# starting at the same time initialise the schema one at a time.
+_INIT_DB_LOCK_KEY = 7_240_001
+
 async def init_db() -> None:
     async with engine.begin() as conn:
 
+        await conn.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _INIT_DB_LOCK_KEY})
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
 

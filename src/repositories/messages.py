@@ -33,7 +33,7 @@ class MessageRepository(Repository):
         )
 
 
-    async def top_semantic_matches(self, user_id: UUID, embedding: list[float], lookback: int = 50, limit: int = 3) -> list[tuple[Message, float]]:
+    async def top_semantic_matches(self, user_id: UUID, embedding: list[float], lookback: int = 20, limit: int = 3) -> list[tuple[Message, float]]:
 
         recent_subquery = self.recent_messages_subquery(user_id, lookback, require_embedding=True)
         recent_message = aliased(Message, recent_subquery)
@@ -48,20 +48,33 @@ class MessageRepository(Repository):
         return [(message, similarity) for message, similarity in result.all()]
 
 
-    async def top_keyword_matches(self, user_id: UUID, query_text: str, lookback: int = 50, limit: int = 3) -> list[tuple[Message, float]]:
+    async def top_keyword_matches(self, user_id: UUID, query_text: str, lookback: int = 20, limit: int = 3) -> list[tuple[Message, float]]:
 
         recent_subquery = self.recent_messages_subquery(user_id, lookback, require_embedding=False)
         recent_message = aliased(Message, recent_subquery)
 
-        document = func.to_tsvector("english", recent_message.prompt_content)
+        missing_ids = (
+            await self.session.execute(
+                select(recent_message.id).where(recent_message.ts_vector.is_(None))
+            )
+        ).scalars().all()
+
+        if missing_ids: 
+            await self.session.execute(
+                update(Message)
+                .where(Message.id.in_(missing_ids))
+                .values(ts_vector=func.to_tsvector("english", Message.prompt_content))
+            )
+            await self.session.commit()
+
         query = func.plainto_tsquery("english", query_text)
 
         # normalization flag `1`, which bounds ts_rank_cd's output to [0, 1]
-        rank = func.ts_rank_cd(document, query, 1).label("rank")
+        rank = func.ts_rank_cd(recent_message.ts_vector, query, 1).label("rank")
 
         result = await self.session.execute(
             select(recent_message, rank)
-            .where(document.op("@@")(query))
+            .where(recent_message.ts_vector.op("@@")(query))
             .order_by(rank.desc())
             .limit(limit)
         )

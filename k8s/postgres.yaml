@@ -1,0 +1,124 @@
+# PVC: The application asks for storage.
+# StorageClass: Defines how Kubernetes should provision that storage.
+# PV (PersistentVolume): The actual storage resource Kubernetes makes available.
+# EBS: The actual AWS storage volume in your EKS cluster.
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3 # General Purpose SSD (gp3) volume type.
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.eks.amazonaws.com
+
+# It determines when Kubernetes should provision the storage volume and bind it to a PVC.
+# Immediate -> Provisions the volume as soon as the PVC is created.
+# WaitForFirstConsumer -> Waits until a Pod uses the PVC before provisioning the volume.
+volumeBindingMode: WaitForFirstConsumer
+
+# determines what happens to the underlying persistent volume when its PVC is deleted.
+# Delete -> The underlying EBS volume is deleted.
+# Retain -> The EBS volume is preserved.
+reclaimPolicy: Retain 
+parameters:
+  type: gp3
+  encrypted: "true" # Data stored on the EBS volume is encrypted.
+---
+
+apiVersion: v1
+kind: Service
+metadata: 
+  name: postgres
+  namespace: deep-research
+spec:
+  # Kubernetes Service gets a virtual IP address (ClusterIP) that forwards traffic to matching Pods.
+  # Headless Service does not get a virtual ClusterIP. Instead, Kubernetes DNS resolves its name directly to the IP addresses of the Pods selected by the Service.
+  clusterIP: None
+  selector: 
+    app: postgres
+  ports:
+    - port: 5432
+---
+
+apiVersion: apps/v1
+# A StatefulSet is similar to a Deployment, but it's designed for applications that need stable identities and persistent storage, such as databases.
+# Unlike Deployment Pods, which usually have generated names, StatefulSet Pods have stable identities.
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: deep-research
+spec:
+  serviceName: postgres
+  replicas: 1
+  # This tells the StatefulSet which Pods it manages, It selects Pods with this label
+  selector:
+    matchLabels:
+      app: postgres
+  # Every Pod created by this StatefulSet receives the label
+  template:
+    metadata:
+      labels:
+        app: postgres
+
+    spec:
+      # This tells Kubernetes not to automatically mount a ServiceAccount token inside the Pod.
+      # This is a security best practice when your application doesn't need to communicate with the Kubernetes API.
+      # In Kubernetes, a ServiceAccount represents an identity used by a Pod when communicating with the Kubernetes API.
+      # By default, Kubernetes mounts the token inside the container.
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999 # the "postgres" user in the official image
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:0.8.0-pg17
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: researchagent
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+              # PGDATA is an environment variable recognized by the official PostgreSQL Docker image.
+              # It specifies the directory where PostgreSQL stores its database cluster files.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata # a sub-directory: the volume root holds lost+found
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "researchagent"]
+            periodSeconds: 10 
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  # It allows Kubernetes to automatically create a separate PersistentVolumeClaim (PVC) for each Pod.
+  # StatefulSet automatically creates PVCs from this template.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"] # ReadWriteOnce means the volume can be mounted as read-write by one node at a time, but it can be accessed by multiple pods in the same node.
+        resources:
+          requests:
+            storage: 20Gi # uses the default StorageClass (gp3)
+
+
+
+
+
+

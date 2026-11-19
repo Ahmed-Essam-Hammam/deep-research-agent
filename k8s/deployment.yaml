@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deep-research-agent
+  namespace: deep-research
+spec:
+  replicas: 2
+  progressDeadlineSeconds: 300 # the pipeline fails if the rollout makes no progress for 5 minutes
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0 # Never intentionally reduce the number of available Pods below two during a rolling update, means you must generate the new pod first before taking down an old one.
+      # But how many pods can you generate in order to before taking the old ones down? this spcicfied by the maxSurge
+      maxSurge: 1 # start 1 extra pod, wait until it is Ready, then retire an old one
+
+  selector:
+    matchLabels:
+      app: deep-research-agent
+  template:
+    metadata:
+      labels:
+        app: deep-research-agent
+    spec:
+      automountServiceAccountToken: false # the app never talks to the Kubernetes API
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001 # matches the user created in the Dockerfile
+        seccompProfile:
+          type: RuntimeDefault # Seccomp (Secure Computing Mode) is a Linux kernel security feature that allows you to restrict which system calls (syscalls) a process can execute.
+      
+      containers:
+        - name: app
+          # Placeholder: the pipeline sets the real ECR image (kubectl set image).
+          image: deep-research-agent:placeholder
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: deep-research-config
+            - secretRef:
+                name: deep-research-secrets
+          readinessProbe: # can the app reach the database? (determine whether your application is ready to receive traffic.)
+            httpGet:
+              path: /api/health/ready
+              port: http
+            initialDelaySeconds: 5 # wait 5s after the container starts before performing its first readiness check.
+            periodSeconds: 10 # perform the readiness check every 10s.
+          livenessProbe: # is the process alive? (whether your application is still functioning properly or whether it has become stuck and needs to be restarted.) 
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false # Your application cannot gain additional privileges through mechanisms such as SUID executables.
+            capabilities:
+              drop: ["ALL"] # This removes all Linux capabilities from the container.        
+
+          
+        

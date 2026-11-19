@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deep-research-config
+  namespace: deep-research
+data:
+  # Non-sensitive settings (names match src/config/settings.py). Anything not listed uses the
+  # app's built-in default. Secrets live in the Secret "deep-research-secrets" (see DEVOPS.md).
+  ENCRYPTION_ALGORITHM: "HS256"
+  DATABASE_ECHO: "false"
+  LANGSMITH_TRACING: "false" # set "true" after adding LANGSMITH_API_KEY to the Secret

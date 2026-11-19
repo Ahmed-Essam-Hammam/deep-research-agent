@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     embedding_dimensions: int = Field(default=2048, description="The dimension of the generated embedding vector, must me compatible with the embedding model") 
 
     cache_enabled: bool = Field(default=True, description="Whether to check the response cache (semantic + keyword) before calling the LLM")
-    cache_lookback: int = Field(default=50, description="How many of the user's most recent messages (across all their conversations) form the candidate pool for both the semantic and keyword cache lookups")
+    cache_lookback: int = Field(default=20, description="How many of the user's most recent messages (across all their conversations) form the candidate pool for both the semantic and keyword cache lookups")
     cache_top_n_per_method: int = Field(default=3, description="How many top candidates to take from the semantic lookup and from the keyword lookup before fusing them")
     cache_rrf_k: int = Field(default=60, description="The 'k' constant in the Reciprocal Rank Fusion formula 1/(k+rank); higher k flattens the influence of rank position")
     cache_hit_score_threshold: float = Field(default=0.80, description="Minimum normalized fused score (0-1) required to serve a cached response instead of calling the LLM")

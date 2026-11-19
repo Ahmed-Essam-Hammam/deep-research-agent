@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
-from sqlalchemy import ForeignKey, DateTime
+from sqlalchemy import ForeignKey, DateTime, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from pgvector.sqlalchemy import Vector
 
 from src.models.db.entities.base import Base
@@ -21,6 +22,7 @@ class Message(Base):
     is_success: Mapped[bool | None] = mapped_column()
     status_code: Mapped[int | None] = mapped_column() 
     input_query_embeddings: Mapped[list[float] | None] = mapped_column(Vector(get_app_settings().embedding_dimensions), nullable=True)
+    ts_vector: Mapped[str | None] = mapped_column(TSVECTOR, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -34,5 +36,9 @@ class Message(Base):
     )
 
     conversation = relationship("Conversation", back_populates="messages")
+
+    __table_args__ = (
+        Index("ix_messages_ts_vector", "ts_vector", postgresql_using="gin"),
+    )
 
 

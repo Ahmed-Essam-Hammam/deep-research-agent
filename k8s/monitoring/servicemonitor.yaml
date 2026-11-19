@@ -1,0 +1,15 @@
+# Tells Prometheus to scrape the app's /metrics endpoint.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: deep-research-agent
+  namespace: deep-research
+spec:
+  selector:
+    matchLabels:
+      app: deep-research-agent
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s # Scrap every 30s.
+

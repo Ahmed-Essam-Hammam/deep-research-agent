@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager 
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from src.api.api_router import api_router
 from src.config.settings import get_settings
@@ -42,6 +44,29 @@ def create_app() -> FastAPI:
     add_request_logging_middleware(app)
 
     app.include_router(api_router, prefix="/api")
+
+    # Prometheus metrics. Served at /metrics (outside /api) so the Ingress, which only
+    # routes /api, never exposes it publicly; Prometheus scrapes it in-cluster.
+    # Its job is to automatically monitor your FastAPI endpoints and collect metrics.
+
+    # For example, it can track:
+    # - Number of HTTP requests.
+    # - HTTP response status codes (200, 400, 500, etc.).
+    # - Request processing duration (latency).
+    # - Number of requests currently being processed.
+    # What does instrument(app) do?
+
+    # It attaches monitoring middleware to your FastAPI application.
+    # Whenever a request comes in, the middleware collects relevant metrics about that request.
+    Instrumentator(excluded_handlers=["/metrics"]).instrument(app)
+
+    @app.get("/metrics", include_in_schema=False)
+    # This decorator excludes /metrics from rate limiting.
+    @limiter.exempt
+    async def metrics() -> Response:
+        # It collects the latest metric values from the Prometheus registry and converts them into Prometheus' text-based exposition format.
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 
     # Silence unused-variable warnings while keeping settings loaded/validated at startup.
     _ = settings
