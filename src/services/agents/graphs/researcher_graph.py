@@ -4,24 +4,23 @@ This module implements a research agent that can perform iterative web searches
 and synthesis to answer complex research questions.
 """
 
-from pydantic import BaseModel, Field
-from typing_extensions import Literal
-
-from langgraph.graph import StateGraph, START, END
-
+from langgraph.graph import END, START, StateGraph
 
 from src.dependencies.injection import get_app_settings
-from src.services.agents.tools.tools import tavily_search, think_tool
-from src.providers.llm import get_llm_provider
+from src.models.agents_states.state_research import (
+    ResearcherOutputState,
+    ResearcherState,
+)
 from src.pipes.search_result_pipes import SearchResultPipe
-from src.models.agents_states.state_research import ResearcherState, ResearcherOutputState
+from src.prompts.prompts import (
+    compress_research_human_message,
+    compress_research_system_prompt,
+    research_agent_prompt,
+    summarize_webpage_prompt,
+)
+from src.providers.llm import get_llm_provider
 from src.services.agents.nodes.research_agent import ResearchAgent
-from src.prompts.prompts import (research_agent_prompt,
-                             compress_research_system_prompt,
-                             compress_research_human_message,
-                             summarize_webpage_prompt)
-
-
+from src.services.agents.tools.tools import tavily_search, think_tool
 
 settings = get_app_settings()
 
@@ -54,24 +53,20 @@ compress_model = llm_provider.get_chat_model(
 )
 
 
+search_result_pipe_obj = SearchResultPipe(
+    llm_provider=llm_provider, summarize_webpage_prompt=summarize_webpage_prompt
+)
 
 
-
-search_result_pipe_obj = SearchResultPipe(llm_provider=llm_provider,
-                                     summarize_webpage_prompt=summarize_webpage_prompt)
-
-
-
-
-research_agent_obj = ResearchAgent(model_with_tools=model_with_tools,
-                                   tools_by_name=tools_by_name,
-                                   compress_model=compress_model,
-                                   research_agent_prompt=research_agent_prompt,
-                                   compress_research_system_prompt=compress_research_system_prompt,
-                                   compress_research_human_message=compress_research_human_message,
-                                   search_result_pipe=search_result_pipe_obj)
-
-
+research_agent_obj = ResearchAgent(
+    model_with_tools=model_with_tools,
+    tools_by_name=tools_by_name,
+    compress_model=compress_model,
+    research_agent_prompt=research_agent_prompt,
+    compress_research_system_prompt=compress_research_system_prompt,
+    compress_research_human_message=compress_research_human_message,
+    search_result_pipe=search_result_pipe_obj,
+)
 
 
 # ===== GRAPH CONSTRUCTION =====
@@ -90,11 +85,11 @@ agent_builder.add_conditional_edges(
     "llm_call",
     research_agent_obj.should_continue,
     {
-        "tool_node": "tool_node", # Continue research loop
-        "compress_research": "compress_research", # Provide final answer
+        "tool_node": "tool_node",  # Continue research loop
+        "compress_research": "compress_research",  # Provide final answer
     },
 )
-agent_builder.add_edge("tool_node", "llm_call") # Loop back for more research
+agent_builder.add_edge("tool_node", "llm_call")  # Loop back for more research
 agent_builder.add_edge("compress_research", END)
 
 # Compile the agent

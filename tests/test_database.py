@@ -5,10 +5,10 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.dependencies.database import async_session, engine, get_db_session, init_db
-
+from src.dependencies.database import engine, get_db_session, init_db
 
 # ===== Engine / sessionmaker configuration (no DB connection needed) =====
+
 
 def test_engine_url_matches_configured_postgres_url():
     configured = os.environ["POSTGRES_URL"]
@@ -17,8 +17,8 @@ def test_engine_url_matches_configured_postgres_url():
     assert engine.url.database in configured
 
 
-
 # ===== get_db_session(): control-flow contract, mocked (no DB needed) =====
+
 
 @pytest.mark.asyncio
 async def test_get_db_session_yields_a_usable_session_object():
@@ -61,6 +61,7 @@ async def test_get_db_session_propagates_exceptions_raised_by_the_caller():
 
 # ===== Integration: requires a real Postgres+pgvector instance =====
 
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_init_db_creates_the_pgvector_extension_and_all_tables(db_available):
@@ -79,4 +80,6 @@ async def test_init_db_creates_the_pgvector_extension_and_all_tables(db_availabl
             result = await conn.execute(
                 text("SELECT to_regclass(:name)"), {"name": table_name}
             )
-            assert result.scalar() is not None, f"expected table '{table_name}' to exist after init_db()"
+            assert result.scalar() is not None, (
+                f"expected table '{table_name}' to exist after init_db()"
+            )

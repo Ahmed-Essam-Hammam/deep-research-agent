@@ -6,14 +6,14 @@ from langgraph.graph import END
 from pydantic import ValidationError
 
 from src.models.agents_states.state_scope import ClarifyWithUser, ResearchQuestion
+from src.pipes.search_result_pipes import SearchResultPipe
+from src.services.agents.nodes.multi_agent import MultiAgent
 from src.services.agents.nodes.research_agent import ResearchAgent
 from src.services.agents.nodes.scope_agent import ScopeAgent
-from src.services.agents.nodes.multi_agent import MultiAgent
 from src.services.agents.tools.tools import think_tool
-from src.pipes.search_result_pipes import SearchResultPipe
-
 
 # ===== Structured-output schemas =====
+
 
 def test_clarify_with_user_requires_all_three_fields():
     with pytest.raises(ValidationError):
@@ -21,6 +21,7 @@ def test_clarify_with_user_requires_all_three_fields():
 
 
 # ===== ScopeAgent =====
+
 
 def _scope_agent(structured_response):
     structured_model = MagicMock()
@@ -41,7 +42,9 @@ def _scope_agent(structured_response):
 
 
 def test_clarify_with_user_ends_the_graph_when_clarification_is_needed():
-    response = ClarifyWithUser(need_clarification=True, question="Which country?", verification="")
+    response = ClarifyWithUser(
+        need_clarification=True, question="Which country?", verification=""
+    )
     agent, _ = _scope_agent(response)
     state = {"messages": [HumanMessage(content="Tell me about the economy")]}
 
@@ -52,7 +55,9 @@ def test_clarify_with_user_ends_the_graph_when_clarification_is_needed():
 
 
 def test_clarify_with_user_routes_to_research_brief_when_context_is_sufficient():
-    response = ClarifyWithUser(need_clarification=False, question="", verification="Starting research.")
+    response = ClarifyWithUser(
+        need_clarification=False, question="", verification="Starting research."
+    )
     agent, _ = _scope_agent(response)
     state = {"messages": [HumanMessage(content="Research the French economy in 2024")]}
 
@@ -63,17 +68,23 @@ def test_clarify_with_user_routes_to_research_brief_when_context_is_sufficient()
 
 
 def test_write_research_brief_returns_brief_and_seeds_supervisor_messages():
-    response = ResearchQuestion(research_brief="Investigate the French economy in 2024.")
+    response = ResearchQuestion(
+        research_brief="Investigate the French economy in 2024."
+    )
     agent, _ = _scope_agent(response)
     state = {"messages": [HumanMessage(content="Research the French economy in 2024")]}
 
     result = agent.write_research_brief(state)
 
     assert result["research_brief"] == "Investigate the French economy in 2024."
-    assert "Investigate the French economy in 2024." in result["supervisor_messages"][0].content
+    assert (
+        "Investigate the French economy in 2024."
+        in result["supervisor_messages"][0].content
+    )
 
 
 # ===== ResearchAgent =====
+
 
 def _research_agent(model_with_tools=None, tools_by_name=None, compress_model=None):
     pipe = MagicMock(spec=SearchResultPipe)
@@ -160,6 +171,7 @@ def test_compress_research_extracts_notes_from_tool_and_ai_messages():
 
 # ===== MultiAgent =====
 
+
 def test_get_notes_from_tool_calls_extracts_only_tool_message_content():
     agent = MultiAgent(
         max_concurrent_researchers=3,
@@ -173,8 +185,12 @@ def test_get_notes_from_tool_calls_extracts_only_tool_message_content():
     messages = [
         HumanMessage(content="Research X and Y"),
         AIMessage(content="Delegating..."),
-        ToolMessage(content="Findings about X", name="ConductResearch", tool_call_id="1"),
-        ToolMessage(content="Findings about Y", name="ConductResearch", tool_call_id="2"),
+        ToolMessage(
+            content="Findings about X", name="ConductResearch", tool_call_id="1"
+        ),
+        ToolMessage(
+            content="Findings about Y", name="ConductResearch", tool_call_id="2"
+        ),
     ]
 
     notes = agent.get_notes_from_tool_calls(messages)
@@ -183,6 +199,7 @@ def test_get_notes_from_tool_calls_extracts_only_tool_message_content():
 
 
 # ===== Tools =====
+
 
 def test_think_tool_echoes_the_reflection_back():
     result = think_tool.invoke({"reflection": "Found three relevant sources so far."})
@@ -193,16 +210,24 @@ def test_tavily_search_tool_delegates_to_search_and_formatting_helpers(monkeypat
     from src.services.agents.tools import tools as tools_module
 
     fake_search_obj = MagicMock()
-    fake_search_obj.tavily_search_multiple.return_value = [{"results": [{"url": "https://a.com"}]}]
+    fake_search_obj.tavily_search_multiple.return_value = [
+        {"results": [{"url": "https://a.com"}]}
+    ]
     fake_pipe_obj = MagicMock()
-    fake_pipe_obj.deduplicate_search_results.return_value = {"https://a.com": {"title": "A", "content": "c"}}
-    fake_pipe_obj.process_search_results.return_value = {"https://a.com": {"title": "A", "content": "summary"}}
+    fake_pipe_obj.deduplicate_search_results.return_value = {
+        "https://a.com": {"title": "A", "content": "c"}
+    }
+    fake_pipe_obj.process_search_results.return_value = {
+        "https://a.com": {"title": "A", "content": "summary"}
+    }
     fake_pipe_obj.format_search_output.return_value = "FORMATTED OUTPUT"
 
     monkeypatch.setattr(tools_module, "search_obj", fake_search_obj)
     monkeypatch.setattr(tools_module, "pipe_obj", fake_pipe_obj)
 
-    result = tools_module.tavily_search.invoke({"query": "python testing best practices"})
+    result = tools_module.tavily_search.invoke(
+        {"query": "python testing best practices"}
+    )
 
     assert result == "FORMATTED OUTPUT"
     fake_search_obj.tavily_search_multiple.assert_called_once()

@@ -1,5 +1,7 @@
 from datetime import datetime
-from pydantic import BaseModel, UUID4
+
+from pydantic import UUID4, BaseModel
+
 
 class TokenBase(BaseModel):
     user_id: UUID4
@@ -12,7 +14,7 @@ class TokenCreate(TokenBase):
     pass
 
 
-class TokenUpdate(TokenBase): 
+class TokenUpdate(TokenBase):
     pass
 
 

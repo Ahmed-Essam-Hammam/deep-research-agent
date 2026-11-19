@@ -21,5 +21,7 @@ def get_llm_provider(name: str) -> LLMProvider:
     key = name.lower()
     if key not in _PROVIDER_REGISTRY:
         available = ", ".join(sorted(_PROVIDER_REGISTRY))
-        raise ValueError(f"Unknown LLM provider '{name}'. Available providers: {available}")
+        raise ValueError(
+            f"Unknown LLM provider '{name}'. Available providers: {available}"
+        )
     return _PROVIDER_REGISTRY[key]()

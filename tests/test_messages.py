@@ -1,8 +1,8 @@
 import asyncio
 import json
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
-from datetime import datetime, timezone
 
 import pytest
 
@@ -14,19 +14,23 @@ from src.repositories.conversations import ConversationRepository
 from src.repositories.messages import MessageRepository
 from src.services.messages import (
     MessageService,
-    persist_message,
     fuse_semantic_keyword,
     generate_and_save,
+    persist_message,
     serve_cached_response,
     stream_and_persist,
 )
 
 
 def _msg(id: int, response_content: str = "cached answer") -> Message:
-    return Message(id=id, conversation_id=1, prompt_content="q", response_content=response_content)
+    return Message(
+        id=id, conversation_id=1, prompt_content="q", response_content=response_content
+    )
 
 
-def _vector(hot_index: int, dimensions: int = get_settings().embedding_dimensions) -> list[float]:
+def _vector(
+    hot_index: int, dimensions: int = get_settings().embedding_dimensions
+) -> list[float]:
 
     vec = [0.0] * dimensions
     vec[hot_index] = 1.0
@@ -34,6 +38,7 @@ def _vector(hot_index: int, dimensions: int = get_settings().embedding_dimension
 
 
 # ===== fuse_cache_candidates (pure) =====
+
 
 def test_fuse_returns_none_when_both_lists_are_empty():
     assert fuse_semantic_keyword([], []) is None
@@ -66,12 +71,14 @@ def test_fuse_ignores_the_raw_score_values_only_rank_position_matters():
     assert fused_a[1] == pytest.approx(fused_b[1])
 
 
-
 # ===== MessageService (unit, mocked repos/providers) =====
+
 
 def _service(settings_overrides: dict | None = None) -> MessageService:
     settings = get_settings().model_copy(update=settings_overrides or {})
-    service = MessageService.__new__(MessageService)  # skip __init__'s real repositories
+    service = MessageService.__new__(
+        MessageService
+    )  # skip __init__'s real repositories
     service.repository = AsyncMock()
     service.conversation_repository = AsyncMock()
     service.llm_provider = MagicMock()
@@ -121,7 +128,9 @@ async def test_check_cache_returns_none_when_caching_is_disabled():
 
 @pytest.mark.asyncio
 async def test_check_cache_returns_response_when_fused_score_clears_threshold():
-    service = _service({"cache_enabled": True, "cache_hit_score_threshold": 0.9, "cache_rrf_k": 60})
+    service = _service(
+        {"cache_enabled": True, "cache_hit_score_threshold": 0.9, "cache_rrf_k": 60}
+    )
     cached = _msg(1, response_content="the cached answer")
     # Ranked #1 in both lists -> fused score is 1.0, comfortably over 0.9.
     service.repository.top_semantic_matches.return_value = [(cached, 0.99)]
@@ -134,7 +143,9 @@ async def test_check_cache_returns_response_when_fused_score_clears_threshold():
 
 @pytest.mark.asyncio
 async def test_check_cache_returns_none_when_fused_score_is_below_threshold():
-    service = _service({"cache_enabled": True, "cache_hit_score_threshold": 0.9, "cache_rrf_k": 60})
+    service = _service(
+        {"cache_enabled": True, "cache_hit_score_threshold": 0.9, "cache_rrf_k": 60}
+    )
     cached = _msg(1)
     # Ranked #1 in only one list -> fused score ~0.5, below the 0.9 threshold.
     service.repository.top_semantic_matches.return_value = [(cached, 0.99)]
@@ -145,27 +156,30 @@ async def test_check_cache_returns_none_when_fused_score_is_below_threshold():
     assert result is None
 
 
-
 @pytest.mark.asyncio
 async def test_stream_falls_back_to_the_llm_when_there_is_no_cache_hit():
     service = _service({"cache_enabled": True})
-    service.conversation_repository.get.return_value = Conversation(id=1, model_type="openrouter/auto")
+    service.conversation_repository.get.return_value = Conversation(
+        id=1, model_type="openrouter/auto"
+    )
     service.embedding_provider.embed_query.return_value = [0.1]
 
     captured = {}
 
     async def _empty_gen():
         return
-        yield  
+        yield
 
     def _capture_worker(worker):
         captured["worker"] = worker
         return _empty_gen()
 
-    with patch.object(MessageService, "check_cache", AsyncMock(return_value=None)), \
-         patch("src.services.messages.stream_and_persist", side_effect=_capture_worker), \
-         patch("src.services.messages.serve_cached_response") as fake_serve, \
-         patch("src.services.messages.generate_and_save") as fake_generate:
+    with (
+        patch.object(MessageService, "check_cache", AsyncMock(return_value=None)),
+        patch("src.services.messages.stream_and_persist", side_effect=_capture_worker),
+        patch("src.services.messages.serve_cached_response") as fake_serve,
+        patch("src.services.messages.generate_and_save") as fake_generate,
+    ):
         await service.stream(1, uuid4(), MessageCreate(prompt="hi"))
         await captured["worker"](asyncio.Queue())
 
@@ -174,6 +188,7 @@ async def test_stream_falls_back_to_the_llm_when_there_is_no_cache_hit():
 
 
 # ===== Streaming helpers (unit, mocked DB) =====
+
 
 def _fake_async_session_cm(fake_session):
     cm = MagicMock()
@@ -193,13 +208,22 @@ async def test_stream_and_persist_yields_sse_formatted_frames():
     assert len(frames) == 1
     assert frames[0].startswith("data: ")
     assert frames[0].endswith("\n\n")
-    assert json.loads(frames[0][len("data: "):].strip()) == {"type": "chunk", "content": "hi"}
+    assert json.loads(frames[0][len("data: ") :].strip()) == {
+        "type": "chunk",
+        "content": "hi",
+    }
 
 
 @pytest.mark.asyncio
 async def test_persist_message_saves_and_emits_a_done_event():
     fake_saved = Message(
-        id=1, conversation_id=1, prompt_content="hi", response_content="hello", is_success=True, status_code=200, created_at= datetime.now(timezone.utc),
+        id=1,
+        conversation_id=1,
+        prompt_content="hi",
+        response_content="hello",
+        is_success=True,
+        status_code=200,
+        created_at=datetime.now(timezone.utc),
     )
     fake_message_repo = AsyncMock()
     fake_message_repo.create.return_value = fake_saved
@@ -207,9 +231,18 @@ async def test_persist_message_saves_and_emits_a_done_event():
 
     queue = asyncio.Queue()
 
-    with patch("src.services.messages.async_session", _fake_async_session_cm(MagicMock())), \
-         patch("src.services.messages.MessageRepository", return_value=fake_message_repo), \
-         patch("src.services.messages.ConversationRepository", return_value=fake_conversation_repo):
+    with (
+        patch(
+            "src.services.messages.async_session", _fake_async_session_cm(MagicMock())
+        ),
+        patch(
+            "src.services.messages.MessageRepository", return_value=fake_message_repo
+        ),
+        patch(
+            "src.services.messages.ConversationRepository",
+            return_value=fake_conversation_repo,
+        ),
+    ):
         await persist_message(
             conversation_id=1,
             prompt="hi",
@@ -239,15 +272,28 @@ async def test_generate_and_save_streams_chunks_then_persists():
     llm_provider = MagicMock()
     llm_provider.get_chat_model.return_value = chat_model
 
-    fake_saved = Message(id=1, conversation_id=1, prompt_content="hi", response_content="Hello", is_success=True, created_at=datetime.now(timezone.utc),)
+    fake_saved = Message(
+        id=1,
+        conversation_id=1,
+        prompt_content="hi",
+        response_content="Hello",
+        is_success=True,
+        created_at=datetime.now(timezone.utc),
+    )
     fake_message_repo = AsyncMock()
     fake_message_repo.create.return_value = fake_saved
 
     queue = asyncio.Queue()
 
-    with patch("src.services.messages.async_session", _fake_async_session_cm(MagicMock())), \
-         patch("src.services.messages.MessageRepository", return_value=fake_message_repo), \
-         patch("src.services.messages.ConversationRepository", return_value=AsyncMock()):
+    with (
+        patch(
+            "src.services.messages.async_session", _fake_async_session_cm(MagicMock())
+        ),
+        patch(
+            "src.services.messages.MessageRepository", return_value=fake_message_repo
+        ),
+        patch("src.services.messages.ConversationRepository", return_value=AsyncMock()),
+    ):
         await generate_and_save(llm_provider, 1, "openrouter/auto", "hi", None, queue)
 
     events = []
@@ -280,14 +326,25 @@ async def test_generate_and_save_marks_the_message_failed_when_the_llm_errors():
 
     fake_message_repo = AsyncMock()
     fake_message_repo.create.return_value = Message(
-        id=1, conversation_id=1, prompt_content="hi", response_content="model unavailable", is_success=False, created_at=datetime.now(timezone.utc),
+        id=1,
+        conversation_id=1,
+        prompt_content="hi",
+        response_content="model unavailable",
+        is_success=False,
+        created_at=datetime.now(timezone.utc),
     )
 
     queue = asyncio.Queue()
 
-    with patch("src.services.messages.async_session", _fake_async_session_cm(MagicMock())), \
-         patch("src.services.messages.MessageRepository", return_value=fake_message_repo), \
-         patch("src.services.messages.ConversationRepository", return_value=AsyncMock()):
+    with (
+        patch(
+            "src.services.messages.async_session", _fake_async_session_cm(MagicMock())
+        ),
+        patch(
+            "src.services.messages.MessageRepository", return_value=fake_message_repo
+        ),
+        patch("src.services.messages.ConversationRepository", return_value=AsyncMock()),
+    ):
         await generate_and_save(llm_provider, 1, "openrouter/auto", "hi", None, queue)
 
     saved_message_arg = fake_message_repo.create.call_args.args[0]
@@ -299,13 +356,24 @@ async def test_generate_and_save_marks_the_message_failed_when_the_llm_errors():
 async def test_serve_cached_response_emits_the_cached_text_as_one_chunk():
     fake_message_repo = AsyncMock()
     fake_message_repo.create.return_value = Message(
-        id=1, conversation_id=1, prompt_content="hi", response_content="cached", is_success=True, created_at=datetime.now(timezone.utc),
+        id=1,
+        conversation_id=1,
+        prompt_content="hi",
+        response_content="cached",
+        is_success=True,
+        created_at=datetime.now(timezone.utc),
     )
     queue = asyncio.Queue()
 
-    with patch("src.services.messages.async_session", _fake_async_session_cm(MagicMock())), \
-         patch("src.services.messages.MessageRepository", return_value=fake_message_repo), \
-         patch("src.services.messages.ConversationRepository", return_value=AsyncMock()):
+    with (
+        patch(
+            "src.services.messages.async_session", _fake_async_session_cm(MagicMock())
+        ),
+        patch(
+            "src.services.messages.MessageRepository", return_value=fake_message_repo
+        ),
+        patch("src.services.messages.ConversationRepository", return_value=AsyncMock()),
+    ):
         await serve_cached_response(1, "hi", [0.1], "cached", queue)
 
     first_event = await queue.get()
@@ -316,14 +384,19 @@ async def test_serve_cached_response_emits_the_cached_text_as_one_chunk():
 
 # ===== MessageRepository (integration) =====
 
+
 async def _make_conversation(db_session, user_id=None) -> Conversation:
     repo = ConversationRepository(db_session)
     return await repo.create(
-        Conversation(user_id=user_id or uuid4(), title="t", model_type="openrouter/auto")
+        Conversation(
+            user_id=user_id or uuid4(), title="t", model_type="openrouter/auto"
+        )
     )
 
 
-async def _make_message(db_session, conversation_id, prompt_content, embedding=None) -> Message:
+async def _make_message(
+    db_session, conversation_id, prompt_content, embedding=None
+) -> Message:
     repo = MessageRepository(db_session)
     return await repo.create(
         Message(
@@ -352,7 +425,9 @@ async def test_repository_list_returns_messages_oldest_first(db_session):
 async def test_top_semantic_matches_ranks_by_cosine_similarity(db_session):
     user_id = uuid4()
     conv = await _make_conversation(db_session, user_id)
-    close = await _make_message(db_session, conv.id, "close match", embedding=_vector(0))
+    close = await _make_message(
+        db_session, conv.id, "close match", embedding=_vector(0)
+    )
     await _make_message(db_session, conv.id, "unrelated", embedding=_vector(1))
 
     results = await MessageRepository(db_session).top_semantic_matches(
@@ -367,7 +442,9 @@ async def test_top_semantic_matches_ranks_by_cosine_similarity(db_session):
 @pytest.mark.asyncio
 async def test_top_semantic_matches_only_considers_the_given_users_messages(db_session):
     other_user_conv = await _make_conversation(db_session)
-    await _make_message(db_session, other_user_conv.id, "someone else's message", embedding=_vector(0))
+    await _make_message(
+        db_session, other_user_conv.id, "someone else's message", embedding=_vector(0)
+    )
 
     results = await MessageRepository(db_session).top_semantic_matches(
         user_id=uuid4(), embedding=_vector(0), lookback=50, limit=3

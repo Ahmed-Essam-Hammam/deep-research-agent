@@ -1,6 +1,6 @@
 """Anthropic implementation of the LLMProvider interface."""
 
-from typing import Any, Optional
+from typing import Any
 
 from langchain.chat_models import init_chat_model
 
@@ -10,15 +10,14 @@ DEFAULT_MODEL = "claude-sonnet-4-6"
 
 
 class AnthropicProvider(LLMProvider):
-
     def __init__(self, default_model: str = DEFAULT_MODEL):
         self.default_model = default_model
 
     def get_chat_model(
         self,
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         **kwargs: Any,
     ) -> Any:
         model_name = model or self.default_model

@@ -1,4 +1,3 @@
-
 """Multi-agent supervisor for coordinating research across multiple specialized agents.
 
 This module implements a supervisor pattern where:
@@ -12,33 +11,32 @@ maintaining isolated context windows for each research topic.
 
 import asyncio
 
-from typing_extensions import Literal
-
 from langchain_core.messages import (
-    HumanMessage, 
-    BaseMessage, 
-    SystemMessage, 
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
     ToolMessage,
-    filter_messages
+    filter_messages,
 )
 from langgraph.graph import END
 from langgraph.types import Command
+from typing_extensions import Literal
 
 from src.models.agents_states.state_multi_agent_supervisor import SupervisorState
 from src.pipes.search_result_pipes import SearchResultPipe
 from src.services.agents.tools.tools import think_tool
 
 
-
-
 class MultiAgent:
-    def __init__(self,
-                 max_concurrent_researchers: int,
-                 max_researcher_iterations: int,
-                 supervisor_model_with_tools,
-                 researcher_agent,
-                 search_result_pipe: SearchResultPipe,
-                 lead_researcher_prompt: str):
+    def __init__(
+        self,
+        max_concurrent_researchers: int,
+        max_researcher_iterations: int,
+        supervisor_model_with_tools,
+        researcher_agent,
+        search_result_pipe: SearchResultPipe,
+        lead_researcher_prompt: str,
+    ):
 
         self.max_concurrent_researchers = max_concurrent_researchers
         self.max_researcher_iterations = max_researcher_iterations
@@ -46,7 +44,6 @@ class MultiAgent:
         self.search_result_pipe = search_result_pipe
         self.researcher_agent = researcher_agent
         self.lead_researcher_prompt = lead_researcher_prompt
-
 
     def get_notes_from_tool_calls(self, messages: list[BaseMessage]) -> list[str]:
         """Extract research notes from ToolMessage objects in supervisor message history.
@@ -63,11 +60,14 @@ class MultiAgent:
         Returns:
             List of research note strings extracted from ToolMessage objects
         """
-        return [tool_msg.content for tool_msg in filter_messages(messages, include_types="tool")]
+        return [
+            tool_msg.content
+            for tool_msg in filter_messages(messages, include_types="tool")
+        ]
 
-
-
-    async def supervisor(self, state: SupervisorState) -> Command[Literal["supervisor_tools"]]:
+    async def supervisor(
+        self, state: SupervisorState
+    ) -> Command[Literal["supervisor_tools"]]:
         """Coordinate research activities.
 
         Analyzes the research brief and current progress to decide:
@@ -85,9 +85,9 @@ class MultiAgent:
 
         # Prepare system message with current date and constraints
         system_message = self.lead_researcher_prompt.format(
-            date=self.search_result_pipe.get_today_str(), 
+            date=self.search_result_pipe.get_today_str(),
             max_concurrent_research_units=self.max_concurrent_researchers,
-            max_researcher_iterations=self.max_researcher_iterations
+            max_researcher_iterations=self.max_researcher_iterations,
         )
         messages = [SystemMessage(content=system_message)] + supervisor_messages
 
@@ -98,11 +98,13 @@ class MultiAgent:
             goto="supervisor_tools",
             update={
                 "supervisor_messages": [response],
-                "research_iterations": state.get("research_iterations", 0) + 1
-            }
+                "research_iterations": state.get("research_iterations", 0) + 1,
+            },
         )
 
-    async def supervisor_tools(self, state: SupervisorState) -> Command[Literal["supervisor", "__end__"]]:
+    async def supervisor_tools(
+        self, state: SupervisorState
+    ) -> Command[Literal["supervisor", "__end__"]]:
         """Execute supervisor decisions - either conduct research or end the process.
 
         Handles:
@@ -131,7 +133,7 @@ class MultiAgent:
         exceeded_iterations = research_iterations >= self.max_researcher_iterations
         no_tool_calls = not most_recent_message.tool_calls
         research_complete = any(
-            tool_call["name"] == "ResearchComplete" 
+            tool_call["name"] == "ResearchComplete"
             for tool_call in most_recent_message.tool_calls
         )
 
@@ -144,12 +146,14 @@ class MultiAgent:
             try:
                 # Separate think_tool calls from ConductResearch calls
                 think_tool_calls = [
-                    tool_call for tool_call in most_recent_message.tool_calls 
+                    tool_call
+                    for tool_call in most_recent_message.tool_calls
                     if tool_call["name"] == "think_tool"
                 ]
 
                 conduct_research_calls = [
-                    tool_call for tool_call in most_recent_message.tool_calls 
+                    tool_call
+                    for tool_call in most_recent_message.tool_calls
                     if tool_call["name"] == "ConductResearch"
                 ]
 
@@ -160,7 +164,7 @@ class MultiAgent:
                         ToolMessage(
                             content=observation,
                             name=tool_call["name"],
-                            tool_call_id=tool_call["id"]
+                            tool_call_id=tool_call["id"],
                         )
                     )
 
@@ -168,12 +172,16 @@ class MultiAgent:
                 if conduct_research_calls:
                     # Launch parallel research agents
                     coros = [
-                        self.researcher_agent.ainvoke({
-                            "researcher_messages": [
-                                HumanMessage(content=tool_call["args"]["research_topic"])
-                            ],
-                            "research_topic": tool_call["args"]["research_topic"]
-                        }) 
+                        self.researcher_agent.ainvoke(
+                            {
+                                "researcher_messages": [
+                                    HumanMessage(
+                                        content=tool_call["args"]["research_topic"]
+                                    )
+                                ],
+                                "research_topic": tool_call["args"]["research_topic"],
+                            }
+                        )
                         for tool_call in conduct_research_calls
                     ]
 
@@ -186,17 +194,23 @@ class MultiAgent:
                     # the supervisor to later retrieve these findings via get_notes_from_tool_calls()
                     research_tool_messages = [
                         ToolMessage(
-                            content=result.get("compressed_research", "Error synthesizing research report"),
+                            content=result.get(
+                                "compressed_research",
+                                "Error synthesizing research report",
+                            ),
                             name=tool_call["name"],
-                            tool_call_id=tool_call["id"]
-                        ) for result, tool_call in zip(tool_results, conduct_research_calls)
+                            tool_call_id=tool_call["id"],
+                        )
+                        for result, tool_call in zip(
+                            tool_results, conduct_research_calls
+                        )
                     ]
 
                     tool_messages.extend(research_tool_messages)
 
                     # Aggregate raw notes from all research
                     all_raw_notes = [
-                        "\n".join(result.get("raw_notes", [])) 
+                        "\n".join(result.get("raw_notes", []))
                         for result in tool_results
                     ]
 
@@ -211,14 +225,14 @@ class MultiAgent:
                 goto=next_step,
                 update={
                     "notes": self.get_notes_from_tool_calls(supervisor_messages),
-                    "research_brief": state.get("research_brief", "")
-                }
+                    "research_brief": state.get("research_brief", ""),
+                },
             )
         else:
             return Command(
                 goto=next_step,
                 update={
                     "supervisor_messages": tool_messages,
-                    "raw_notes": all_raw_notes
-                }
+                    "raw_notes": all_raw_notes,
+                },
             )

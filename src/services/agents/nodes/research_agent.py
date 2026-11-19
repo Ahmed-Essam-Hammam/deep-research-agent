@@ -1,21 +1,26 @@
+from langchain_core.messages import (
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+    filter_messages,
+)
 from typing_extensions import Literal
-
-from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage, filter_messages
 
 from src.models.agents_states.state_research import ResearcherState
 from src.pipes.search_result_pipes import SearchResultPipe
 
 
-
 class ResearchAgent:
-    def __init__(self,
-                 model_with_tools,
-                 tools_by_name,
-                 compress_model,
-                 research_agent_prompt: str,
-                 compress_research_system_prompt: str,
-                 compress_research_human_message: str,
-                 search_result_pipe: SearchResultPipe,):
+    def __init__(
+        self,
+        model_with_tools,
+        tools_by_name,
+        compress_model,
+        research_agent_prompt: str,
+        compress_research_system_prompt: str,
+        compress_research_human_message: str,
+        search_result_pipe: SearchResultPipe,
+    ):
 
         self.model_with_tools = model_with_tools
         self.tools_by_name = tools_by_name
@@ -24,7 +29,6 @@ class ResearchAgent:
         self.compress_research_system_prompt = compress_research_system_prompt
         self.compress_research_human_message = compress_research_human_message
         self.search_result_pipe = search_result_pipe
-
 
     def llm_call(self, state: ResearcherState):
         """Analyze current state and decide on next actions.
@@ -38,7 +42,8 @@ class ResearchAgent:
         return {
             "researcher_messages": [
                 self.model_with_tools.invoke(
-                    [SystemMessage(content=self.research_agent_prompt)] + state["researcher_messages"]
+                    [SystemMessage(content=self.research_agent_prompt)]
+                    + state["researcher_messages"]
                 )
             ]
         }
@@ -62,8 +67,9 @@ class ResearchAgent:
             ToolMessage(
                 content=observation,
                 name=tool_call["name"],
-                tool_call_id=tool_call["id"]
-            ) for observation, tool_call in zip(observations, tool_calls)
+                tool_call_id=tool_call["id"],
+            )
+            for observation, tool_call in zip(observations, tool_calls)
         ]
 
         return {"researcher_messages": tool_outputs}
@@ -74,27 +80,34 @@ class ResearchAgent:
         Takes all the research messages and tool outputs and creates
         a compressed summary suitable for the supervisor's decision-making.
         """
-
-        system_message = self.compress_research_system_prompt.format(date=self.search_result_pipe.get_today_str())
-        messages = [SystemMessage(content=system_message)] + state.get("researcher_messages", []) + [HumanMessage(content=self.compress_research_human_message)]
+        system_message = self.compress_research_system_prompt.format(
+            date=self.search_result_pipe.get_today_str()
+        )
+        messages = (
+            [SystemMessage(content=system_message)]
+            + state.get("researcher_messages", [])
+            + [HumanMessage(content=self.compress_research_human_message)]
+        )
         response = self.compress_model.invoke(messages)
 
         # Extract raw notes from tool and AI messages
         raw_notes = [
-            str(m.content) for m in filter_messages(
-                state["researcher_messages"], 
-                include_types=["tool", "ai"]
+            str(m.content)
+            for m in filter_messages(
+                state["researcher_messages"], include_types=["tool", "ai"]
             )
         ]
 
         return {
             "compressed_research": str(response.content),
-            "raw_notes": ["\n".join(raw_notes)]
+            "raw_notes": ["\n".join(raw_notes)],
         }
 
     # ===== ROUTING LOGIC =====
 
-    def should_continue(self, state: ResearcherState) -> Literal["tool_node", "compress_research"]:
+    def should_continue(
+        self, state: ResearcherState
+    ) -> Literal["tool_node", "compress_research"]:
         """Determine whether to continue research or provide final answer.
 
         Determines whether the agent should continue the research loop or provide

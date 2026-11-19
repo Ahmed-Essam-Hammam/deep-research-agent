@@ -11,7 +11,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         start = time.perf_counter()
         response = await call_next(request)
         elapsed_ms = (time.perf_counter() - start) * 1000
-        print(f"[http] {request.method} {request.url.path} -> {response.status_code} ({elapsed_ms:.1f}ms)")
+        print(
+            f"[http] {request.method} {request.url.path} -> {response.status_code} ({elapsed_ms:.1f}ms)"
+        )
         return response
 
 

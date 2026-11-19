@@ -37,7 +37,9 @@ def test_probe_and_metrics_handlers_are_exempt_from_rate_limiting():
     exempt = limiter._exempt_routes
     assert "src.api.routers.health_router.get_health" in exempt
     assert "src.api.routers.health_router.get_ready" in exempt
-    assert any(name.endswith(".metrics") and name.startswith("main.") for name in exempt)
+    assert any(
+        name.endswith(".metrics") and name.startswith("main.") for name in exempt
+    )
 
 
 def test_readiness_ok_when_database_reachable(client):

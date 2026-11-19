@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+
 class MessageBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -15,7 +16,6 @@ class MessageUpdate(MessageBase):
 
 
 class MessageOut(MessageBase):
-
     id: int
     conversation_id: int
     prompt_content: str

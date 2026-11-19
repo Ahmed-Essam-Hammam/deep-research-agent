@@ -1,10 +1,10 @@
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from langchain_core.messages import HumanMessage
 
-from src.providers.llm.base import LLMProvider
 from src.models.agents_states.state_research import Summary
 from src.models.agents_states.state_scope import AgentState
+from src.providers.llm.base import LLMProvider
 
 
 class SearchResultPipe:
@@ -12,7 +12,6 @@ class SearchResultPipe:
         self.llm_provider = llm_provider
         self.summarize_webpage_prompt = summarize_webpage_prompt
 
-    
     def get_today_str(self) -> str:
         """Get current date in a human-readable format."""
         from datetime import datetime
@@ -54,7 +53,11 @@ class SearchResultPipe:
             )
         except Exception as exc:  # noqa: BLE001 - deliberate fallback, logged by caller
             print(f"Failed to summarize webpage: {exc}")
-            return webpage_content[:1000] + "..." if len(webpage_content) > 1000 else webpage_content
+            return (
+                webpage_content[:1000] + "..."
+                if len(webpage_content) > 1000
+                else webpage_content
+            )
 
     # Apply the summarization on each search result
     def process_search_results(
@@ -66,7 +69,9 @@ class SearchResultPipe:
             if not result.get("raw_content"):
                 content = result["content"]
             else:
-                content = self.summarize_webpage_content(summarization_model, result["raw_content"])
+                content = self.summarize_webpage_content(
+                    summarization_model, result["raw_content"]
+                )
 
             processed[url] = {"title": result["title"], "content": content}
         return processed
@@ -85,15 +90,13 @@ class SearchResultPipe:
             formatted_output += "-" * 80 + "\n"
         return formatted_output
 
-
-
-    async def final_report_generation(self, writer_model, final_report_generation_prompt: str, state: AgentState):
-        """
-        Final report generation node.
+    async def final_report_generation(
+        self, writer_model, final_report_generation_prompt: str, state: AgentState
+    ):
+        """Final report generation node.
 
         Synthesizes all research findings into a comprehensive final report
         """
-
         notes = state.get("notes", [])
 
         findings = "\n".join(notes)
@@ -101,12 +104,14 @@ class SearchResultPipe:
         final_report_prompt = final_report_generation_prompt.format(
             research_brief=state.get("research_brief", ""),
             findings=findings,
-            date=self.get_today_str()
+            date=self.get_today_str(),
         )
 
-        final_report = await writer_model.ainvoke([HumanMessage(content=final_report_prompt)])
+        final_report = await writer_model.ainvoke(
+            [HumanMessage(content=final_report_prompt)]
+        )
 
         return {
-            "final_report": final_report.content, 
+            "final_report": final_report.content,
             "messages": ["Here is the final report: " + final_report.content],
         }

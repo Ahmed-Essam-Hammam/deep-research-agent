@@ -1,11 +1,7 @@
 from datetime import datetime
 from typing import Annotated
-from pydantic import (UUID4,
-                      AfterValidator,
-                      BaseModel,
-                      ConfigDict,
-                      Field,
-                      validate_call)
+
+from pydantic import UUID4, AfterValidator, BaseModel, ConfigDict, Field, validate_call
 
 
 @validate_call
@@ -16,7 +12,7 @@ def validate_username(value: str) -> str:
 
 
 @validate_call
-def validate_password(value: str) -> str: 
+def validate_password(value: str) -> str:
     validations = [
         (
             lambda v: any(char.isdigit() for char in v),
@@ -38,11 +34,13 @@ def validate_password(value: str) -> str:
     return value
 
 
+ValidUsername = Annotated[
+    str, Field(min_length=3, max_length=20), AfterValidator(validate_username)
+]
 
-
-ValidUsername = Annotated[str, Field(min_length=3, max_length=20), AfterValidator(validate_username)]
-
-ValidPassword = Annotated[str, Field(min_length=8, max_length=64), AfterValidator(validate_password)]
+ValidPassword = Annotated[
+    str, Field(min_length=8, max_length=64), AfterValidator(validate_password)
+]
 
 
 class UserBase(BaseModel):
@@ -64,11 +62,13 @@ class UserCreate(UserBase):
 class UserInDB(UserBase):
     hashed_password: str
 
+
 class PasswordUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     current_password: str = Field(..., min_length=1)
     new_password: ValidPassword
+
 
 class UserOut(UserBase):
     id: UUID4

@@ -1,7 +1,9 @@
 import uuid
 from datetime import UTC, datetime
-from sqlalchemy import Index, String, DateTime
+
+from sqlalchemy import DateTime, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from src.models.db.entities.base import Base
 
 
@@ -24,7 +26,9 @@ class User(Base):
         onupdate=lambda: datetime.now(UTC),
     )
 
-    conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+    conversations = relationship(
+        "Conversation", back_populates="user", cascade="all, delete-orphan"
+    )
     tokens = relationship("Token", back_populates="user", cascade="all, delete-orphan")
 
     __table_args__ = (Index("ix_users_username", username),)

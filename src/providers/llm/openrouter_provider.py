@@ -1,23 +1,21 @@
-from typing import Any, Optional
+from typing import Any
 
 from langchain_openai import ChatOpenAI
 
-from src.providers.llm.base import LLMProvider
 from src.config.settings import get_settings
-
+from src.providers.llm.base import LLMProvider
 
 settings = get_settings()
 
 API_KEY = settings.openrouter_api_key
 DEFAULT_MODEL = settings.default_llm_model
-DEFAULT_BASE_URL = settings.openrouter_site_url 
+DEFAULT_BASE_URL = settings.openrouter_site_url
 
 
 class OpenRouterProvider(LLMProvider):
-
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         base_url: str = DEFAULT_BASE_URL,
         default_model: str = DEFAULT_MODEL,
     ):
@@ -28,12 +26,11 @@ class OpenRouterProvider(LLMProvider):
         self.base_url = base_url
         self.default_model = default_model
 
-
     def get_chat_model(
         self,
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         **kwargs: Any,
     ) -> Any:
         model_name = model or self.default_model
@@ -47,7 +44,6 @@ class OpenRouterProvider(LLMProvider):
             init_kwargs["temperature"] = temperature
         if max_tokens is not None:
             init_kwargs["max_tokens"] = max_tokens
-
 
         init_kwargs.update(kwargs)
         return ChatOpenAI(**init_kwargs)

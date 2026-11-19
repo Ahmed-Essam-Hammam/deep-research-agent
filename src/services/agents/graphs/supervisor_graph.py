@@ -1,18 +1,19 @@
-import asyncio
+from langgraph.graph import START, StateGraph
 
-from langgraph.graph import StateGraph, START, END
-
-from src.prompts.prompts import lead_researcher_prompt
-from src.models.agents_states.state_multi_agent_supervisor import SupervisorState
-from src.services.agents.nodes.multi_agent import MultiAgent
-from src.services.agents.graphs.researcher_graph import search_result_pipe_obj, llm_provider, researcher_agent
-from src.models.agents_states.state_multi_agent_supervisor import (
-    SupervisorState, 
-    ConductResearch, 
-    ResearchComplete
-)
-from src.services.agents.tools.tools import think_tool
 from src.dependencies.injection import get_app_settings
+from src.models.agents_states.state_multi_agent_supervisor import (
+    ConductResearch,
+    ResearchComplete,
+    SupervisorState,
+)
+from src.prompts.prompts import lead_researcher_prompt
+from src.services.agents.graphs.researcher_graph import (
+    llm_provider,
+    researcher_agent,
+    search_result_pipe_obj,
+)
+from src.services.agents.nodes.multi_agent import MultiAgent
+from src.services.agents.tools.tools import think_tool
 
 settings = get_app_settings()
 
@@ -28,14 +29,14 @@ supervisor_model = llm_provider.get_chat_model(
 supervisor_model_with_tools = supervisor_model.bind_tools(supervisor_tools)
 
 
-multi_agent_obj = MultiAgent(max_concurrent_researchers=max_concurrent_researchers,
-                             max_researcher_iterations=max_researcher_iterations,
-                             supervisor_model_with_tools=supervisor_model_with_tools,
-                             researcher_agent=researcher_agent,
-                             search_result_pipe=search_result_pipe_obj,
-                             lead_researcher_prompt=lead_researcher_prompt)
-
-
+multi_agent_obj = MultiAgent(
+    max_concurrent_researchers=max_concurrent_researchers,
+    max_researcher_iterations=max_researcher_iterations,
+    supervisor_model_with_tools=supervisor_model_with_tools,
+    researcher_agent=researcher_agent,
+    search_result_pipe=search_result_pipe_obj,
+    lead_researcher_prompt=lead_researcher_prompt,
+)
 
 
 # ===== GRAPH CONSTRUCTION =====

@@ -1,6 +1,5 @@
 from fastapi import HTTPException, status
 
-
 UnauthorizedException = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="Not authenticated",

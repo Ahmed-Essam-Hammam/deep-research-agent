@@ -3,7 +3,6 @@ from typing import Literal
 
 
 class SearchProvider(ABC):
-
     @abstractmethod
     def search(
         self,

@@ -2,14 +2,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.pipes.search_result_pipes import SearchResultPipe
 from src.providers.search.base import SearchProvider
 from src.providers.search.factory import get_search_provider, register_search_provider
 from src.providers.search.tavily_provider import TavilySearchProvider
 from src.services.search.search_service import SearchService
-from src.pipes.search_result_pipes import SearchResultPipe
-
 
 # ===== TavilySearchProvider (mocked TavilyClient - no real network calls) =====
+
 
 def test_search_calls_the_underlying_client_with_expected_args():
     with patch("src.providers.search.tavily_provider.TavilyClient") as fake_client_cls:
@@ -18,7 +18,9 @@ def test_search_calls_the_underlying_client_with_expected_args():
         fake_client_cls.return_value = fake_client
 
         provider = TavilySearchProvider(api_key="test-key")
-        result = provider.search("weather in Cairo", max_results=5, topic="news", include_raw_content=False)
+        result = provider.search(
+            "weather in Cairo", max_results=5, topic="news", include_raw_content=False
+        )
 
         fake_client_cls.assert_called_once_with(api_key="test-key")
         fake_client.search.assert_called_once_with(
@@ -30,7 +32,7 @@ def test_search_calls_the_underlying_client_with_expected_args():
 def test_search_provider_reads_the_environment_when_no_api_key_is_given():
     with patch("src.providers.search.tavily_provider.TavilyClient") as fake_client_cls:
         TavilySearchProvider(api_key=None)
-        fake_client_cls.assert_called_once_with()  
+        fake_client_cls.assert_called_once_with()
 
 
 def test_search_provider_implements_the_search_provider_interface():
@@ -39,6 +41,7 @@ def test_search_provider_implements_the_search_provider_interface():
 
 
 # ===== Search provider factory =====
+
 
 def test_factory_returns_a_tavily_provider():
     with patch("src.providers.search.tavily_provider.TavilyClient"):
@@ -58,7 +61,9 @@ def test_factory_raises_for_an_unknown_provider_name():
 
 def test_register_search_provider_adds_a_new_entry():
     class FakeProvider(SearchProvider):
-        def search(self, query, max_results=3, topic="general", include_raw_content=True):
+        def search(
+            self, query, max_results=3, topic="general", include_raw_content=True
+        ):
             return {"results": []}
 
     register_search_provider("fake", lambda api_key: FakeProvider())
@@ -66,14 +71,19 @@ def test_register_search_provider_adds_a_new_entry():
         assert isinstance(get_search_provider("fake"), FakeProvider)
     finally:
         from src.providers.search.factory import _PROVIDER_REGISTRY
+
         _PROVIDER_REGISTRY.pop("fake", None)
 
 
 # ===== SearchService =====
 
+
 def test_tavily_search_multiple_executes_one_search_call_per_query():
     fake_provider = MagicMock(spec=SearchProvider)
-    fake_provider.search.side_effect = [{"results": [{"url": "a"}]}, {"results": [{"url": "b"}]}]
+    fake_provider.search.side_effect = [
+        {"results": [{"url": "a"}]},
+        {"results": [{"url": "b"}]},
+    ]
     service = SearchService(search_client=fake_provider)
 
     results = service.tavily_search_multiple(["query one", "query two"])
@@ -87,7 +97,9 @@ def test_tavily_search_multiple_passes_through_options_to_every_query():
     fake_provider.search.return_value = {"results": []}
     service = SearchService(search_client=fake_provider)
 
-    service.tavily_search_multiple(["q"], max_results=7, topic="finance", include_raw_content=False)
+    service.tavily_search_multiple(
+        ["q"], max_results=7, topic="finance", include_raw_content=False
+    )
 
     fake_provider.search.assert_called_once_with(
         "q", max_results=7, include_raw_content=False, topic="finance"
@@ -101,21 +113,30 @@ def test_tavily_search_multiple_returns_empty_list_for_no_queries():
 
 # ===== SearchResultPipe =====
 
+
 @pytest.fixture
 def pipe():
     llm_provider = MagicMock()
-    return SearchResultPipe(llm_provider=llm_provider, summarize_webpage_prompt="{webpage_content} | {date}")
+    return SearchResultPipe(
+        llm_provider=llm_provider, summarize_webpage_prompt="{webpage_content} | {date}"
+    )
 
 
 def test_get_today_str_matches_expected_format(pipe):
     import re
+
     assert re.match(r"^[A-Za-z]{3} [A-Za-z]{3} \d{2}, \d{4}$", pipe.get_today_str())
 
 
 def test_deduplicate_search_results_keeps_first_occurrence_per_url(pipe):
     search_results = [
         {"results": [{"url": "https://a.com", "title": "First A"}]},
-        {"results": [{"url": "https://a.com", "title": "Duplicate A"}, {"url": "https://b.com", "title": "B"}]},
+        {
+            "results": [
+                {"url": "https://a.com", "title": "Duplicate A"},
+                {"url": "https://b.com", "title": "B"},
+            ]
+        },
     ]
 
     unique = pipe.deduplicate_search_results(search_results)
@@ -125,7 +146,9 @@ def test_deduplicate_search_results_keeps_first_occurrence_per_url(pipe):
 
 
 def test_process_search_results_uses_plain_content_when_no_raw_content(pipe):
-    unique_results = {"https://a.com": {"title": "A", "content": "short summary", "raw_content": None}}
+    unique_results = {
+        "https://a.com": {"title": "A", "content": "short summary", "raw_content": None}
+    }
 
     processed = pipe.process_search_results(unique_results, "gpt-4.1")
 
@@ -133,12 +156,25 @@ def test_process_search_results_uses_plain_content_when_no_raw_content(pipe):
 
 
 def test_process_search_results_summarizes_when_raw_content_present(pipe, monkeypatch):
-    monkeypatch.setattr(pipe, "summarize_webpage_content", lambda model, content: f"SUMMARY({model}):{content}")
-    unique_results = {"https://a.com": {"title": "A", "content": "short", "raw_content": "very long raw html..."}}
+    monkeypatch.setattr(
+        pipe,
+        "summarize_webpage_content",
+        lambda model, content: f"SUMMARY({model}):{content}",
+    )
+    unique_results = {
+        "https://a.com": {
+            "title": "A",
+            "content": "short",
+            "raw_content": "very long raw html...",
+        }
+    }
 
     processed = pipe.process_search_results(unique_results, "gpt-4.1")
 
-    assert processed["https://a.com"]["content"] == "SUMMARY(gpt-4.1):very long raw html..."
+    assert (
+        processed["https://a.com"]["content"]
+        == "SUMMARY(gpt-4.1):very long raw html..."
+    )
 
 
 def test_format_search_output_returns_placeholder_for_no_results(pipe):
@@ -188,11 +224,15 @@ def test_summarize_webpage_content_returns_short_text_unmodified_on_error(pipe):
 @pytest.mark.asyncio
 async def test_final_report_generation_builds_the_report_from_notes(pipe):
     writer_model = MagicMock()
-    writer_model.ainvoke = AsyncMock(return_value=MagicMock(content="Final report body"))
+    writer_model.ainvoke = AsyncMock(
+        return_value=MagicMock(content="Final report body")
+    )
     state = {"notes": ["finding one", "finding two"], "research_brief": "brief text"}
 
     result = await pipe.final_report_generation(
-        writer_model, "Brief: {research_brief}\nFindings: {findings}\nDate: {date}", state
+        writer_model,
+        "Brief: {research_brief}\nFindings: {findings}\nDate: {date}",
+        state,
     )
 
     assert result["final_report"] == "Final report body"
