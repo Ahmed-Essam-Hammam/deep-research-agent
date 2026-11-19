@@ -49,8 +49,8 @@ data "aws_iam_policy_document" "trust_main_branch" {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     # A principal identifies the entity that is allowed to perform the action.
     principals {
-      type        = "Federated"  # means we're dealing with an external identity provider.
-      identifiers = [local.oidc_provider_arn]  # contains the ARN of our GitHub OIDC provider.
+      type        = "Federated"               # means we're dealing with an external identity provider.
+      identifiers = [local.oidc_provider_arn] # contains the ARN of our GitHub OIDC provider.
     }
 
     # AWS trusts tokens issued by the GitHub OIDC provider to request role assumption.
@@ -63,7 +63,7 @@ data "aws_iam_policy_document" "trust_main_branch" {
     # Here we're saying:
     # The token's audience must be exactly: sts.amazonaws.com
     condition {
-      test = "StringEquals"
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
@@ -112,8 +112,8 @@ data "aws_iam_policy_document" "trust_terraform" {
 # After creating the policies, we now need to use (assume) them
 
 resource "aws_iam_role" "github_deploy" {
-    name = "${var.name}-github-deploy"
-    assume_role_policy = data.aws_iam_policy_document.trust_main_branch.json
+  name               = "${var.name}-github-deploy"
+  assume_role_policy = data.aws_iam_policy_document.trust_main_branch.json
 }
 
 # This code defines the permissions policy for your GitHub deployment IAM Role (github_deploy).
@@ -125,9 +125,9 @@ resource "aws_iam_role" "github_deploy" {
 # 3. Retrieve information about a specific EKS cluster.
 
 data "aws_iam_policy_document" "github_deploy" {
-    statement {
+  statement {
     actions   = ["ecr:GetAuthorizationToken"]
-    resources = ["*"]   # Because ecr:GetAuthorizationToken does not support resource-level permissions, That means AWS requires this permission to apply to all resources (*), you can't specifiy a single resource (repository) to apply the this permission to. 
+    resources = ["*"] # Because ecr:GetAuthorizationToken does not support resource-level permissions, That means AWS requires this permission to apply to all resources (*), you can't specifiy a single resource (repository) to apply the this permission to. 
   }
   statement {
     actions = [

@@ -41,9 +41,9 @@ module "vpc" {
 # ECR stores image metadata and manifests, while the actual image layers are downloaded from Amazon S3.
 # So pulling an image involves accessing both ECR and S3.
 resource "aws_vpc_endpoint" "s3" {
-  vpc_id            = module.vpc.vpc_id
+  vpc_id = module.vpc.vpc_id
   # Specifies the AWS service you're connecting to.
-  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  service_name = "com.amazonaws.${var.aws_region}.s3"
   # Gateway	-> Used for S3 and DynamoDB.
   # Interface -> Uses Elastic Network Interfaces (ENIs) and private IP addresses.
   vpc_endpoint_type = "Gateway"

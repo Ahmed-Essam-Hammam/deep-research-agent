@@ -1,7 +1,7 @@
 # EKS Auto Mode: AWS runs the worker nodes, the load balancer controller and the EBS storage
 # driver for us - no node groups, no add-ons, no controller to install.
 module "eks" {
-  source = "terraform-aws-modules/eks/aws"
+  source  = "terraform-aws-modules/eks/aws"
   version = "~> 21.29"
 
   name               = var.name
@@ -21,7 +21,7 @@ module "eks" {
   # - Public: Accessible over the internet.
   # - Private: Accessible only from within the cluster's VPC or connected networks.
   # - Both: Accessible through both public and private networking.
-  endpoint_public_access = true
+  endpoint_public_access  = true
   endpoint_private_access = true
   # Controls whether your EKS cluster uses IAM Roles for Service Accounts (IRSA).
   # Normally, when an application runs inside an EKS Pod and needs to access AWS services, such as:
@@ -75,17 +75,17 @@ module "eks" {
           edit = {
             # This references an AWS-managed EKS access policy called AmazonEKSEditPolicy.
             # It grants permissions to create, update, delete, and manage many Kubernetes resources.
-            policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
+            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
             # It determines WHERE the policy applies.
             # There are two main scopes:
-	        # cluster	Permissions -> apply across the entire cluster.
+            # cluster	Permissions -> apply across the entire cluster.
             # namespace Permissions -> apply only within specified namespaces.
             access_scope = { type = "namespace", namespaces = [local.namespace] }
           }
         }
       }
     },
-        {
+    {
       for arn in var.admin_principal_arns : "admin-${md5(arn)}" => {
         principal_arn = arn
         policy_associations = {

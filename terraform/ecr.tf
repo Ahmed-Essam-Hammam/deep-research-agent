@@ -25,10 +25,10 @@ resource "aws_ecr_lifecycle_policy" "app" {
       #	tagStatus = "any"	Consider all images, whether tagged or untagged.
       # countType = "imageCountMoreThan"	Apply the rule when the image count exceeds a threshold.
       # countNumber = 30	Keep the 30 most recent images.
-      selection    = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 30 }
+      selection = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 30 }
 
       # expire means delete the selected images from the repository.
-      action       = { type = "expire" }
+      action = { type = "expire" }
     }]
   })
 }
