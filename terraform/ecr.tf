@@ -1,6 +1,6 @@
 resource "aws_ecr_repository" "app" {
   name                 = "${var.name}-agent"
-  image_tag_mutability = "IMMUTABLE" # a Git SHA tag can never be overwritten.
+  image_tag_mutability = "IMMUTABLE" # a Git SHA tag can never be overwritten
 
   # This configuration enables automatic vulnerability scanning of Docker images whenever you push them to Amazon ECR (Elastic Container Registry).
   image_scanning_configuration {
