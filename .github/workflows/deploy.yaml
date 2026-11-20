@@ -3,7 +3,7 @@ name: Deploy application
 on:
   push:
     branches: [main]
-    # It tells GitHub Actions to skip triggering the workflow when a push or pull request only modifies files matching these paths.
+    # It tells GitHub Actions to skip triggering the workflow when a push or pull request only modifies files matching these paths
     paths-ignore: ["terraform/**", ".github/workflows/terraform.yml", "**/*.md"]
   workflow_dispatch: {}
 
