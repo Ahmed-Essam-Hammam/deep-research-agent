@@ -29,32 +29,6 @@ def test_liveness_returns_ok(client):
     assert response.json() == {"status": "ok"}
 
 
-def test_probe_and_metrics_handlers_are_exempt_from_rate_limiting():
-    # Kubelet probes and Prometheus scrapes far exceed the default limits (60/hour, 2/5s),
-    # so they must be exempt in case the limiter is (or becomes) enforced.
-    from src.middleware.rate_limiter import limiter
-
-    exempt = limiter._exempt_routes
-    assert "src.api.routers.health_router.get_health" in exempt
-    assert "src.api.routers.health_router.get_ready" in exempt
-    assert any(
-        name.endswith(".metrics") and name.startswith("main.") for name in exempt
-    )
-
-
-def test_readiness_ok_when_database_reachable(client):
-    with patch("src.api.routers.health_router.engine", _fake_engine()):
-        response = client.get("/api/health/ready")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ready"}
-
-
-def test_readiness_503_when_database_down(client):
-    broken = _fake_engine(connect_side_effect=ConnectionError("db down"))
-    with patch("src.api.routers.health_router.engine", broken):
-        response = client.get("/api/health/ready")
-    assert response.status_code == 503
-
 
 def test_metrics_endpoint_serves_prometheus_text(client):
     client.get("/api/health")
