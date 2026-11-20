@@ -71,7 +71,7 @@ data "aws_iam_policy_document" "trust_main_branch" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/main"]
+      values = ["repo:Ahmed-Essam-Hammam@197415873/deep-research-agent@1375630231:ref:refs/heads/main"]
     }
   }
 }
@@ -98,8 +98,8 @@ data "aws_iam_policy_document" "trust_terraform" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "repo:${var.github_repo}:ref:refs/heads/main",
-        "repo:${var.github_repo}:environment:terraform-production",
+        "repo:Ahmed-Essam-Hammam@197415873/deep-research-agent@1375630231:ref:refs/heads/main",
+        "repo:Ahmed-Essam-Hammam@197415873/deep-research-agent@1375630231:environment:terraform-production",
       ]
     }
   }
