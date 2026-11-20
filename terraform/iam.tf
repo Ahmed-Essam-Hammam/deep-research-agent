@@ -71,7 +71,7 @@ data "aws_iam_policy_document" "trust_main_branch" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values = ["repo:Ahmed-Essam-Hammam@197415873/deep-research-agent@1375630231:ref:refs/heads/main"]
+      values   = ["repo:Ahmed-Essam-Hammam@197415873/deep-research-agent@1375630231:ref:refs/heads/main"]
     }
   }
 }
