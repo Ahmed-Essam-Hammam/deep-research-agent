@@ -72,6 +72,12 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Debug GitHub OIDC context
+        run: |
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Branch/ref: $GITHUB_REF"
+          echo "Event: $GITHUB_EVENT_NAME"
+
       - name: Authenticate to AWS (OIDC, no stored keys)
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
