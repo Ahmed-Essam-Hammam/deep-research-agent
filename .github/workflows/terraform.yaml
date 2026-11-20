@@ -1,7 +1,7 @@
 name: Terraform
 
 # Plan on every infrastructure change pushed to main; apply only after a human approves the
-# "terraform-production" environment. This workflow never destroys anything.
+# "terraform-production" environment. This workflow never destroys anything
 on:
   push:
     branches: [main]
