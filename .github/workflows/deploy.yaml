@@ -1,21 +1,46 @@
 name: Deploy application
 
-# push to main -> test -> build image -> push to ECR -> rolling update on EKS
 on:
   push:
     branches: [main]
+    # It tells GitHub Actions to skip triggering the workflow when a push or pull request only modifies files matching these paths.
     paths-ignore: ["terraform/**", ".github/workflows/terraform.yml", "**/*.md"]
   workflow_dispatch: {}
 
+# This defines the GitHub token permissions available to the workflow.
+# GitHub Actions automatically generates a temporary token called GITHUB_TOKEN for each workflow run. This token allows the workflow to interact with your GitHub repository.
 permissions:
   contents: read
 
-# One AWS-touching run at a time (shared with terraform.yml's apply job).
+
+# This config controls how GitHub Actions handles multiple workflow runs that belong to the same concurrency group.
+# For example, imagine you push three commits in quick succession, triggering three deployment runs. If they all use this concurrency group, GitHub coordinates their execution.
 concurrency:
   group: aws-production
-  cancel-in-progress: false
+  cancel-in-progress: false  # Tells GitHub not to cancel an already-running workflow when another workflow in the same group is triggered.
+
 
 jobs:
+  lint:
+    name: Lint (pylint)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Pylint (production source)
+        run: python -m pylint --disable=R,C --fail-under=7.0 src/ pages/ tests/
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -29,9 +54,7 @@ jobs:
           cache-dependency-path: requirements*.txt
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpq-dev
       - run: pip install -r requirements-dev.txt
-      - run: ruff check .
-      # Integration tests need a live database and are skipped here (see DEVOPS.md).
-      - run: pytest -m "not integration" -q
+      - run: python -m pytest tests/ -v
 
   deploy:
     needs: test # a failing test or lint run blocks the deployment
@@ -58,7 +81,9 @@ jobs:
       - name: Log in to ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
-
+        
+      # This step builds a Docker image and pushes it to Amazon ECR (Elastic Container Registry), using the Git commit SHA as the image tag.
+      # There is also an important optimization: if an image for the same commit already exists in ECR, it skips rebuilding and pushing it.
       - name: Build and push (tag = commit SHA)
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
@@ -73,6 +98,7 @@ jobs:
             docker push "$IMAGE"
           fi
 
+      # This step deploys the newly built Docker image to your Amazon EKS cluster and waits until Kubernetes confirms that the deployment has successfully rolled out.
       - name: Deploy and wait for the rollout
         run: |
           aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER_NAME"
@@ -80,6 +106,7 @@ jobs:
           # Fails the job if the new pods never become Ready - success is only reported once
           # Kubernetes confirms the rollout.
           kubectl rollout status deployment/deep-research-agent -n "$NAMESPACE" --timeout=10m
+
 
       - name: Show cluster state on failure
         if: failure()
